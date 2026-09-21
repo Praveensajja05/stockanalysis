@@ -1,0 +1,13 @@
+# Dependencies — never commit these (huge, and reinstallable from package.json)
+node_modules/
+frontend/node_modules/
+
+# Secrets — NEVER commit. Holds your DB password, API key, and JWT secret.
+.env
+
+# Build output
+frontend/dist/
+
+# Logs / OS junk
+*.log
+.DS_Store
