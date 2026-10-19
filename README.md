@@ -1,6 +1,6 @@
 # Mini-Aladdin — Portfolio Risk & Analytics Engine
 
-A full-stack application that computes portfolio-level risk analytics on real
+A REST API backend that computes portfolio-level risk analytics on real
 market data — a scaled-down take on the kind of risk platform BlackRock's
 Aladdin provides. Users build portfolios of holdings, and the engine computes
 returns, volatility, Sharpe ratio, maximum drawdown, correlation, beta, and
@@ -27,7 +27,6 @@ Value at Risk (VaR) — at both the single-asset and the weighted portfolio leve
 
 | Layer     | Choice                                    |
 | --------- | ----------------------------------------- |
-| Frontend  | React (Vite)                              |
 | Backend   | Node.js + Express                         |
 | Database  | PostgreSQL                                |
 | Auth      | bcrypt (password hashing) + JWT           |
@@ -36,13 +35,15 @@ Value at Risk (VaR) — at both the single-asset and the weighted portfolio leve
 ## Architecture
 
 ```
-frontend (React / Vite)          backend (Express)              PostgreSQL
-  App.jsx  ───fetch + JWT───►  server.js (routes)  ───SQL───►  users
-  api.js                       auth.js (register/login/JWT)     portfolios
-                               financeUtils.js (pure math)      assets
-                               db/pool.js (connection pool)     price_history
-                                                                positions
+API client                       backend (Express)              PostgreSQL
+(Postman / Thunder Client)       server.js (routes)  ───SQL───►  users
+  ───HTTP + JWT───►              auth.js (register/login/JWT)     portfolios
+                                 financeUtils.js (pure math)      assets
+                                 db/pool.js (connection pool)     price_history
+                                                                  positions
 ```
+
+There is no frontend in this repository; the API is exercised with an HTTP client.
 
 The risk math lives in `financeUtils.js` as pure, dependency-free functions, so
 it is unit-tested independently of the database and HTTP layer
@@ -97,10 +98,9 @@ defensible, not accidental.
 Node.js, PostgreSQL, and a free Alpha Vantage API key
 (https://www.alphavantage.co/support/#api-key).
 
-### Backend
+### Install
 ```bash
-npm install express pg dotenv cors bcryptjs jsonwebtoken
-npm install --save-dev nodemon
+npm install
 ```
 Create `.env` in the project root:
 ```
@@ -112,24 +112,21 @@ DB_NAME=stockanalysis
 ALPHA_VANTAGE_KEY=your_key
 JWT_SECRET=some_long_random_string
 ```
-Create the database and run the schema (the five `CREATE TABLE` statements), then:
+Create the database and its five tables (`schema.sql`), then start the server:
 ```bash
-nodemon server.js        # http://localhost:3000
-node financeUtils.test.js  # run the math tests (should print "15 passed")
-```
-
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev              # http://localhost:5173
+psql -U postgres -c "CREATE DATABASE stockanalysis;"
+psql -U postgres -d stockanalysis -f schema.sql
+npm run dev              # http://localhost:3000
+npm test                 # math tests (should print "15 passed")
 ```
 
 ### First run
-1. Register a user in the UI.
+1. Register with `POST /auth/register` and copy the returned token. Send it as
+   `Authorization: Bearer <token>` on the portfolio routes.
 2. Seed a few tickers: insert them into `assets`, then call
    `GET /assets/<TICKER>/fetch-prices` for each (e.g. AAPL, MSFT, SPY).
-3. Create a portfolio, add positions, and hit **View risk**.
+3. Create a portfolio (`POST /portfolios`), add positions
+   (`POST /portfolios/:id/positions`), then call `GET /portfolios/:id/risk`.
 
 ## API (selected)
 
@@ -151,7 +148,7 @@ npm run dev              # http://localhost:5173
 
 `financeUtils.test.js` verifies the math with mathematical invariants that must
 hold regardless of input — e.g. `correlation(x, x) = 1`, `correlation(x, −x) = −1`,
-`beta(x, x) = 1`, VaR ≥ 0, and correct date-alignment. Run with `node financeUtils.test.js`.
+`beta(x, x) = 1`, VaR ≥ 0, and correct date-alignment. Run with `npm test`.
 
 ## Known limitations & future work
 
